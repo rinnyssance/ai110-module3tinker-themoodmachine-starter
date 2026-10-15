@@ -1,67 +1,95 @@
 # The Mood Machine
 
-The Mood Machine is a simple text classifier that begins with a rule based approach and can optionally be extended with a small machine learning model. It tries to guess whether a short piece of text sounds **positive**, **negative**, **neutral**, or even **mixed** based on patterns in your data.
+The Mood Machine is a small, rule-based sentiment analyzer for short text. It predicts whether a message sounds **positive**, **negative**, or **neutral** by looking for words, slang, negation, and a few sarcastic phrases.
 
-This lab gives you hands on experience with how basic systems work, where they break, and how different modeling choices affect fairness and accuracy. You will edit code, add data, run experiments, and write a short model card reflection.
+This project is also a reflection on a bigger question: how can a text classifier understand language when meaning depends on culture, context, and community?
 
----
+## What it does
 
-## Repo Structure
+The analyzer in [`mood_analyzer.py`](./mood_analyzer.py) follows a simple pipeline:
 
-```plaintext
-├── dataset.py         # Starter word lists and example posts (you will expand these)
-├── mood_analyzer.py   # Rule based classifier with TODOs to improve
-├── main.py            # Runs the rule based model and interactive demo
-├── ml_experiments.py  # (New) A tiny ML classifier using scikit-learn
-├── model_card.md      # Template to fill out after experimenting
-└── requirements.txt   # Dependencies for optional ML exploration
+1. Normalize text by lowercasing it and turning it into tokens.
+2. Look up positive and negative words.
+3. Add sentiment weights for mood-bearing slang.
+4. Flip a nearby sentiment word when it follows a negation such as `not` or `never`.
+5. Detect a small set of sarcastic phrase patterns.
+6. Convert the final score into a label.
+
+Positive scores become `positive`, negative scores become `negative`, and a score of zero becomes `neutral`.
+
+## Examples
+
+```text
+"I love this class"               -> positive
+"I am not happy about this"       -> negative
+"That performance was fire"       -> positive
+"This assignment is mid"          -> negative
+"I am down bad"                   -> negative
+"I love getting stuck in traffic" -> negative (sarcasm rule)
 ```
 
----
+The word lists, sample posts, and sarcastic phrase patterns are stored in [`dataset.py`](./dataset.py).
 
-## Getting Started
+## Running the project
 
-1. Open this folder in VS Code.
-2. Make sure your Python environment is active.
-3. Install dependencies:
-
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-4. Run the rule-based starter:
-
-    ```bash
-    python main.py
-    ```
-
-If pieces of the analyzer are not implemented yet, you will see helpful errors that guide you to the TODOs.
-
-To try the ML model later, run:
+Install the optional dependencies and run the main demo:
 
 ```bash
-python ml_experiments.py
+pip install -r requirements.txt
+python main.py
 ```
 
----
+The program evaluates the sample posts, runs a batch demo, and then opens an interactive prompt. Type `quit` or press Enter to exit the prompt.
 
-## What You Will Do
+## What I learned about sentiment analysis
 
-During this lab you will:
+Sentiment analysis is not the same as simply counting “good” and “bad” words. A useful prediction depends on several layers of interpretation:
 
-- Implement the missing parts of the rule based `MoodAnalyzer`.
-- Add new positive and negative words.
-- Expand the dataset with more posts, including slang, emojis, sarcasm, or mixed emotions.
-- Observe unusual or incorrect predictions and think about why they happen.
-- Train a tiny machine learning model and compare its behavior to your rule based system.
-- Complete the model card with your findings about data, behavior, limitations, and improvements.
-- The goal is to help you reason about how models behave, how data shapes them, and why even small design choices matter.
+- **Preprocessing matters.** Punctuation, capitalization, contractions, and tokenization can change whether a word is recognized.
+- **Context matters.** “Not happy” does not mean the same thing as “happy,” and a phrase such as “down bad” cannot be understood by analyzing each word independently.
+- **Sarcasm is difficult.** “I absolutely love getting stuck in traffic” contains positive vocabulary but communicates frustration. A small phrase rule can help, but it will never understand every sarcastic message.
+- **Scores are design choices.** Giving `fire` a score of `2` and `mid` a score of `-1` is an assumption about intensity, not an objective truth.
+- **A small dataset limits confidence.** A classifier can appear accurate on a few examples while still failing on new writing styles.
 
----
+## Culture, slang, and algorithmic bias
 
-## Tips
+Language is shaped by communities. Some of the slang in this project is associated with African American English (AAVE), while other terms are common in internet and youth language more broadly. These categories overlap, change over time, and are not interchangeable. No community uses every term in the same way.
 
-- Start with preprocessing before updating scoring rules.
-- When debugging, print tokens, scores, or intermediate choices.
-- Ask an AI assistant to help create edge case posts or unusual wording.
-- Try examples that mislead or confuse your model. Failure cases teach you the most.
+Adding slang made the bot more useful for some messages, but it also made the risks of algorithmic bias clearer:
+
+- **Dialect bias:** A system trained mostly on formal or standardized English may treat AAVE grammar and vocabulary as unusual, negative, or low quality.
+- **Lexicon bias:** A word can be positive in one context and negative in another. For example, `fire` can describe something excellent, but it can also refer literally to danger.
+- **Context and identity:** The same phrase may have different meanings depending on who says it, who hears it, and the surrounding conversation.
+- **Representation bias:** If the examples do not include enough speakers, dialects, regions, ages, and contexts, the model will learn a narrow version of language.
+- **Impact bias:** A wrong label is not equally harmless in every application. Mood predictions should not be used for high-stakes decisions about people.
+
+The lesson is not that slang should be removed. The lesson is that slang should be represented carefully, tested with real context, and evaluated for different language communities. A model should not confuse unfamiliar language with negative sentiment.
+
+## Limitations and next steps
+
+This is an educational rule-based system, not a general-purpose language model. It can miss new slang, misunderstand reclaimed language, mishandle emojis, and make mistakes when several sentiments appear together. Its sarcasm rules are intentionally small and conservative.
+
+Possible improvements include:
+
+- Add more examples from different communities, with consent and careful labeling.
+- Track `mixed` sentiment instead of forcing every message into one direction.
+- Add emoji and repeated-character handling.
+- Compare predictions across dialectal and formal rewrites of the same meaning.
+- Measure false positives and false negatives separately for different types of language.
+- Let people inspect and correct the words and weights used by the classifier.
+- Use human review before applying sentiment predictions to real decisions.
+
+## Project files
+
+```text
+dataset.py         Word lists, slang patterns, sample posts, and labels
+mood_analyzer.py   Rule-based sentiment analyzer
+main.py            Evaluation, demo, and interactive prompt
+ml_experiments.py  Optional small machine-learning experiment
+model_card.md      Model limitations and evaluation notes
+README.md          Project documentation and reflection
+```
+
+## Takeaway
+
+Building a small mood bot showed me that sentiment analysis is partly a technical problem and partly a language-and-culture problem. Better code can improve tokenization and scoring, but fairness also requires better data, transparent assumptions, cultural humility, and attention to how predictions affect real people.

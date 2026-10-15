@@ -4,8 +4,7 @@ Shared data for the Mood Machine lab.
 This file defines:
   - POSITIVE_WORDS: starter list of positive words
   - NEGATIVE_WORDS: starter list of negative words
-  - SAMPLE_POSTS: short example posts for evaluation and training
-  - TRUE_LABELS: human labels for each post in SAMPLE_POSTS
+H  - TRUE_LABELS: human labels for each post in SAMPLE_POSTS
 """
 
 # ---------------------------------------------------------------------
@@ -38,6 +37,17 @@ NEGATIVE_WORDS = [
     "boring",
 ]
 
+# Common phrase patterns that often signal positive words are being used
+# sarcastically. These are intentionally conservative so normal positive
+# messages are not flipped accidentally.
+SARCASM_PHRASES = [
+    "love getting stuck",
+    "love waiting in line",
+    "great another homework",
+    "amazing another meeting",
+    "wow that's great",
+]
+
 # ---------------------------------------------------------------------
 # Starter labeled dataset
 # ---------------------------------------------------------------------
@@ -50,6 +60,13 @@ SAMPLE_POSTS = [
     "This is fine",
     "So excited for the weekend",
     "I am not happy about this",
+    "I'm going to have a fun Halloween",
+    "I don't like this class at all",
+    "Today was amazing",
+    "Wow, that's great",
+    "Mondays suck",
+    "I absolutely love getting stuck in traffic",
+    "Great, another homework assignment",
 ]
 
 # Human labels for each post above.
@@ -65,7 +82,15 @@ TRUE_LABELS = [
     "neutral",   # "This is fine"
     "positive",  # "So excited for the weekend"
     "negative",  # "I am not happy about this"
-]
+    "positive",  # "I'm going to have a fun Halloween"
+    "negative",  # "I don't like this class at all"
+    "positive",  # "Today was amazing"
+    "mixed",     # "Wow, that's great"
+    "negative",  # "Mondays suck"
+    "negative",  # "I absolutely love getting stuck in traffic" (sarcastic)
+    "negative",  # "Great, another homework assignment" (sarcastic)
+
+    ]
 
 # TODO: Add 5-10 more posts and labels.
 #

@@ -10,8 +10,34 @@ This class starts with very simple logic:
 """
 
 from typing import List, Dict, Tuple, Optional
+import re
 
-from dataset import POSITIVE_WORDS, NEGATIVE_WORDS
+from dataset import NEGATIVE_WORDS, POSITIVE_WORDS, SARCASM_PHRASES
+
+# Mood-bearing slang is kept separate so the lexicon can be tuned without
+# changing the starter vocabulary. The values represent sentiment strength.
+SLANG_SCORES = {
+    "bussin": 2,
+    "fire": 2,
+    "lit": 1,
+    "goated": 2,
+    "ate": 2,
+    "valid": 1,
+    "dope": 1,
+    "slaps": 2,
+    "wack": -2,
+    "mid": -1,
+    "salty": -1,
+    "pressed": -1,
+    "trippin": -1,
+}
+
+SLANG_PHRASE_SCORES = {
+    ("down", "bad"): -2,
+    ("not", "it"): -2,
+    ("on", "point"): 2,
+    ("no", "cap"): 1,
+}
 
 
 class MoodAnalyzer:
@@ -31,6 +57,11 @@ class MoodAnalyzer:
         # Store as sets for faster lookup.
         self.positive_words = set(w.lower() for w in positive_words)
         self.negative_words = set(w.lower() for w in negative_words)
+        self.sarcasm_phrases = [
+            tuple(phrase.lower().split()) for phrase in SARCASM_PHRASES
+        ]
+        self.slang_scores = SLANG_SCORES
+        self.slang_phrase_scores = SLANG_PHRASE_SCORES
 
     # ---------------------------------------------------------------------
     # Preprocessing
@@ -53,7 +84,9 @@ class MoodAnalyzer:
           - Normalize repeated characters ("soooo" -> "soo")
         """
         cleaned = text.strip().lower()
-        tokens = cleaned.split()
+        # Keep contractions together while dropping punctuation around words.
+        tokens = re.findall(r"[a-z0-9]+(?:'[a-z0-9]+)?", cleaned)
+        print(f"Tokens: {tokens}")
 
         return tokens
 
@@ -75,15 +108,49 @@ class MoodAnalyzer:
           - Give some words higher weights than others (for example "hate" < "annoyed")
           - Treat emojis or slang (":)", "lol", "💀") as strong signals
         """
-        # TODO: Implement this method.
-        #   1. Call self.preprocess(text) to get tokens.
-        #   2. Loop over the tokens.
-        #   3. Increase the score for positive words, decrease for negative words.
-        #   4. Return the total score.
-        #
-        # Hint: if you implement negation, you may want to look at pairs of tokens,
-        # like ("not", "happy") or ("never", "fun").
-        pass
+        tokens = self.preprocess(text)
+        score = 0
+        negation_words = {
+            "not", "never", "no", "don't", "dont", "isn't", "isnt",
+            "can't", "cant", "won't", "wont",
+        }
+
+        for index, token in enumerate(tokens):
+            value = 0
+            if token in self.slang_scores:
+                value = self.slang_scores[token]
+            elif token in self.positive_words:
+                value = 1
+            elif token in self.negative_words:
+                value = -1
+
+            # Enhancement: a negation immediately before a mood word flips it.
+            if value and index > 0 and tokens[index - 1] in negation_words:
+                value *= -1
+
+            score += value
+
+        # Score common multi-word slang expressions once when they appear.
+        for phrase, phrase_score in self.slang_phrase_scores.items():
+            phrase_length = len(phrase)
+            score += sum(
+                phrase_score
+                for index in range(len(tokens) - phrase_length + 1)
+                if tuple(tokens[index:index + phrase_length]) == phrase
+            )
+
+        # Enhancement: flip an otherwise positive score for known sarcastic
+        # phrases such as "love getting stuck" or "great another homework".
+        token_sequence = tuple(tokens)
+        is_sarcastic = any(
+            phrase and phrase == token_sequence[index:index + len(phrase)]
+            for phrase in self.sarcasm_phrases
+            for index in range(len(tokens) - len(phrase) + 1)
+        )
+        if is_sarcastic and score > 0:
+            score = -score
+
+        return score
 
     # ---------------------------------------------------------------------
     # Label prediction
@@ -105,12 +172,13 @@ class MoodAnalyzer:
         Just remember that whatever labels you return should match the labels
         you use in TRUE_LABELS in dataset.py if you care about accuracy.
         """
-        # TODO: Implement this method.
-        #   1. Call self.score_text(text) to get the numeric score.
-        #   2. Return "positive" if the score is above 0.
-        #   3. Return "negative" if the score is below 0.
-        #   4. Return "neutral" otherwise.
-        pass
+        score = self.score_text(text)
+
+        if score > 0:
+            return "positive"
+        if score < 0:
+            return "negative"
+        return "neutral"
 
     # ---------------------------------------------------------------------
     # Explanations (optional but recommended)
